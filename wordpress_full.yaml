@@ -1,0 +1,4 @@
+- hosts: server
+  
+  roles:
+    - wordpress_full

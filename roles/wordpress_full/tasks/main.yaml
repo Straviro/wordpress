@@ -1,0 +1,58 @@
+- name: Create a network
+  docker_network:
+    name: wordpress
+
+- name: Create mysql container
+  docker_container:
+    name: mysql
+    image: mysql:{{ mysql_version }}
+    restart_policy: always
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+      MYSQL_DATABASE: "{{ mysql_database }}"
+      MYSQL_USER: "{{ mysql_user }}"
+      MYSQL_PASSWORD: "{{ mysql_password }}"
+    networks:
+      - name: wordpress
+    volumes:
+      - "/var/lib/mysql:/var/lib/mysql"
+
+- name: Create wordpress container
+  docker_container:
+    name: wordpress
+    image: wordpress:{{ wordpress_version }}
+    restart_policy: always
+    env:
+      WORDPRESS_DB_HOST: mysql
+      WORDPRESS_DB_USER: "{{ mysql_user }}"
+      WORDPRESS_DB_PASSWORD: "{{ mysql_password }}"
+      WORDPRESS_DB_NAME: "{{ mysql_database }}"
+    networks:
+      - name: wordpress
+    volumes:
+      - "/var/lib/wordpress:/var/www/html"
+
+- name: Create nginx container
+  docker_container:
+    name: nginx
+    image: nginx:{{ nginx_version }}
+    ports:
+     - "80:80"
+    volumes: 
+      - /etc/nginx:/etc/nginx/conf.d
+      - /var/lib/wordpress:/var/www/html
+    networks:
+      - name: wordpress
+
+- name: Creates directory
+  file:    
+    path: /etc/nginx
+    state: directory
+
+- name: Apply nginx config
+  copy:
+    src: ../files/wordpress.conf
+    dest: /etc/nginx/wordpress.conf
+  notify: reload nginx
+  tags:
+  - update_config_nginx
